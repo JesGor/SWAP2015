@@ -1,0 +1,18 @@
+# Servidores Web de Altas Prestaciones 2014-15
+## Práctica 1 - Jesús Prieto López
+
+Esta práctica consistía en ir preparando las herramientas básicas para las siguientes prácticas:
+* Virtualizar dos máquinas con un servidor Ubuntu LTS 32 bits.
+* Instalar los servicios de SSH y LAMP.
+
+Después de realizar las operaciones indicadas en el guión de prácticas, debemos realizar algunas comprobaciones.
+
+Comprobamos la versión del servidor web con el siguiente comando:
+`$ apache2 -v`
+![Versión instalada de apache](cap1.png)
+
+Y vemos si está el proceso del servidor web en ejecución:
+`$ ps aux | grep apache`
+![Procesos ejecutandose de apache](cap2.png)
+
+Podemos ver en el listado de procesos que está activo el proceso del servidor web instalado (apache).
