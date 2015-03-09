@@ -12,13 +12,13 @@ Para clonar la información y manter actualizados los datos necesitamos la herra
 Como vamos a crear una tarea con *crontab* para que haga la sincronización automática. Realizamos los siguientes pasos:
 
 1. Necesitamos que el acceso SSH que realiza la máquina B a la máquina A sea sin que nos requiera la contraseña (se haga de modo automático). 
-	1.1. Creamos una clave SSH en la máquina B. 
+	1. Creamos una clave SSH en la máquina B. 
 		Utilizamos *ssh-keygen*, introcimos el comando: `$ ssh-leygen -t dsa`
 		Podemos indicar un nombre de archivo, aunque ya pone uno por defecto (privada: id_dsa; pública: id_sda.pub) y un *passphrase*, pero en este caso los dejamos en blanco ambos. Debería salir algo así: ![Resultado de creación de la clave](cap1.PNG)
-    1.2. Copiamos la clave pública a la máquina A dentro del fichero ~/.ssh/authorized_keys.
+    2. Copiamos la clave pública a la máquina A dentro del fichero ~/.ssh/authorized_keys.
     	Usamos *ssh-copy-id* con lo que copiaremos la clave pública en la máquina A. Insertamos el comando: `$ ssh-copy-id -i .ssh/id_dsa.pub root@192.168.244.129`
-    1.3. Comprobamos que podemos conectarnos mediante SSH sin contraseña.
+    3. Comprobamos que podemos conectarnos mediante SSH sin contraseña.
     	Probamos a conectarnos con el comando: `$ ssh 192.168.244.129 -l root`
     	Si no nos pide contraseña el proceso se habrá realizado perfectamente.
 2. Podemos ahora usar *rsync* mediante una tarea programada con *crontab*
-	2.1. 
+	1. 
