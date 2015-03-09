@@ -9,7 +9,7 @@ Después de realizar las operaciones indicadas en el guión de prácticas, debem
 
 Comprobamos la versión del servidor web con el siguiente comando:
 `$ apache2 -v`
-![Versión instalada de apache](SWAP2015/practica1/cap1.PNG)
+![Versión instalada de apache](cap1.PNG)
 
 Y vemos si está el proceso del servidor web en ejecución:
 `$ ps aux | grep apache`
