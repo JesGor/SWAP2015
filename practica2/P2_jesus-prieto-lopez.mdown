@@ -5,20 +5,41 @@ En esta práctica debemos encargarnos de la configuración de las máquinas serv
 
 Tenemos 2 máquinas: A y B. 
 * La máquina A (en mi caso Ubuntu 1) será el servidor principal. **IP -> 192.168.244.129**
-* La máquina B (Ubuntu 2) será la que tenga el clonado de la información. **IP -> 192.168.244.130**
+* La máquina B (Ubuntu 2) será la que tenga clonada la información. **IP -> 192.168.244.130**
 
-Para clonar la información y manter actualizados los datos necesitamos la herramienta *rsync*. La instalamos con el comando: `$ apt-get install rsync`
+Para clonar la información y manter actualizados los datos necesitamos la herramienta *rsync*. La instalamos con el comando: 
+`$ apt-get install rsync`
 
-Como vamos a crear una tarea con *crontab* para que haga la sincronización automática. Realizamos los siguientes pasos:
+Como vamos a crear una tarea con *crontab* para que haga la sincronización automática, debemos configurar también el acceso de una máquina a otra.
 
-1. Necesitamos que el acceso SSH que realiza la máquina B a la máquina A sea sin que nos requiera la contraseña (se haga de modo automático). 
-	1. Creamos una clave SSH en la máquina B. 
-		Utilizamos *ssh-keygen*, introcimos el comando: `$ ssh-leygen -t dsa`
-		Podemos indicar un nombre de archivo, aunque ya pone uno por defecto (privada: id_dsa; pública: id_sda.pub) y un *passphrase*, pero en este caso los dejamos en blanco ambos. Debería salir algo así: ![Resultado de creación de la clave](cap1.PNG)
-    2. Copiamos la clave pública a la máquina A dentro del fichero ~/.ssh/authorized_keys.
-    	Usamos *ssh-copy-id* con lo que copiaremos la clave pública en la máquina A. Insertamos el comando: `$ ssh-copy-id -i .ssh/id_dsa.pub root@192.168.244.129`
-    3. Comprobamos que podemos conectarnos mediante SSH sin contraseña.
-    	Probamos a conectarnos con el comando: `$ ssh 192.168.244.129 -l root`
-    	Si no nos pide contraseña el proceso se habrá realizado perfectamente.
-2. Podemos ahora usar *rsync* mediante una tarea programada con *crontab*
-	1. 
+###Acceso SSH
+Necesitamos que el acceso SSH que realiza la máquina B a la máquina A sea sin que nos requiera la contraseña. 
+
+1. Creamos una clave SSH en la máquina B. Utilizamos *ssh-keygen*, introcimos el comando: 
+    `$ ssh-keygen -t dsa`
+    Podemos indicar un nombre de archivo, aunque ya pone uno por defecto (privada: id_dsa; pública: id_sda.pub) y un *passphrase*, pero en este caso los dejamos en blanco ambos. Debería salir algo así: 
+    
+    ![Resultado de creación de la clave](cap1.PNG)
+
+2. Copiamos la clave pública a la máquina A dentro del fichero *~/.ssh/authorized_keys*. Usamos *ssh-copy-id* con lo que copiaremos la clave pública en la máquina A. Insertamos en consola: 
+    `$ ssh-copy-id -i .ssh/id_dsa.pub root@192.168.244.129`
+
+3. Comprobamos que podemos conectarnos mediante SSH sin contraseña.
+    Probamos a conectarnos con el comando: 
+    `$ ssh 192.168.244.129 -l root`
+    Si no nos pide contraseña el proceso se habrá realizado perfectamente.
+
+###Usamos *rsync* mediante una tarea programada con *crontab*
+	
+1. Fijaremos una tarea para la máquina B en el archivo de *crontab* para que se ejecute en segundo plano cuando indiquemos, automatizando así el proceso de clonación. En este caso vamos a poner que se **ejecute cada hora**.
+
+2. También le tenemos que indicar que la tarea la realiza el usuario *root*.
+
+3. Y por último el comando que queremos que se ejecute. Haciendo uso de *rsync* como habiamos dicho, e indicando la IP de la máquina A. Sería algo como esto:
+`rsync -avz -e ssh root@192.168.244.129:/var/www/ /var/www/`
+
+4. Introducimos la siguiente línea en el archivo */etc/crontab*: 
+ `0 * * * * root rsync -avz -e ssh root@192.168.244.129:/var/www/ /var/www/`
+ El primer 0 y los asteríscos hacen referencia al minuto 0 de todas las horas, de todos los días, de todos los meses, ... Luego el usuario *root* y por último el comando como ya se explican en los puntos anteriores.
+
+Con esto ya estaría la tarea fijada y se actualizarían los datos de la máquina B con los de la máquina A cada hora.
