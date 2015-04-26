@@ -1,0 +1,118 @@
+# Servidores Web de Altas Prestaciones 2014-15
+## Práctica 3 - Jesús Prieto López
+
+----------
+
+El objetivo principal de esta práctica consiste en el **balanceo de carga por software**. En una red tendremos una máquina que será la balanceadora y repartirá el trabajo a dos máquinas servidoras.
+
+Dentro de la máquina que será la encargada del balanceo realizaremos una configuración con **nginx** y otra con **haproxy**.
+
+Un resumen de la disposición de las máquinas:
+
+* Máquina balanceadora | IP: 192.168.244.130
+* Máquina Servidor 1 Apache (Doble de potente que la 2) | IP: 192.168.244.129
+* Máquina Servidor 2 Apache | IP: 192.168.244.131
+
+## Balanceo de carga con *nginx*
+
+Como es lógico, después de instalar **nginx** hay que modificar la configuración. La configuracion que viene por defecto no sirve para este caso. El archivo a configurar es */etc/nginx/conf.d/default.conf*
+
+Al ser un grupo de servidores el que va a recibir el tráfico del balanceador, tenemos que definirlo con la directiva *upstream*. Definimos el grupo de servidores web Apache:
+
+	upstream apaches {
+		server 192.168.244.129;
+	    server 192.168.244.131;
+	} 
+
+
+**NOTA:** es importante definir lo anterior al principio del archivo.
+
+En este caso el funcionamiento será mediante Round-Robin.
+
+También debemos configurar una serie de parámetros dentro de la sección  **server** del archivo de configuración.
+Lo dejaremos tal que así:
+
+	server{
+		listen 80;
+		server_name m3lb;
+		access_log /var/log/nginx/m3lb.access.log;
+		error_log /var/log/nginx/m3lb.error.log;
+		root /var/www/;
+		location /
+		{
+			proxy_pass http://apaches;
+			proxy_set_header Host $host;
+			proxy_set_header X-Real-IP $remote_addr;
+			proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+			proxy_http_version 1.1;
+			proxy_set_header Connection "";
+		}
+	}
+
+Con esto está definidas opciones para que el proxy_pass funcione y los backends sean HTTP 1.1, elimina la cabecera Connection. Podemos cambiar el server_name al que deseemos.
+
+Una vez hayamos acabado, reiniciamos el servicio:
+
+`$sudo service nginx restart`
+
+Si todo ha salido bien y no ha aparecido ningún error podemos probar su funcionamiento conectandonos, por ejemplo, a través del navegador. Debería aparecer la página de inicio de los servidores apache.
+
+![Captura del navegador conectandose a la IP del servidor balanceador](cap1.PNG)
+
+Podemos ver que si realizamos más conexiones realiza la repartición de carga y nos conecta con ambos servidores. (podemos comprobarlo mejor si usamos diferentes index.html en los servidores)
+
+![Captura del navegador conectándose a la IP del servidor balanceador con la página del servidor 2 de apache](cap2.PNG)
+
+Para que se utilice un sistema en el que un servidor reciba más peticiones que otro, siendo el servidor Apache 1 como el más potente (el doble), podemos indicarle al balanceador que le mande a este más carga mediante la opción **weight**.
+
+Tan solo tenemos que añadir una sección *upstream* tal como esta:
+
+	upstream apaches {
+		server 192.168.244.129 weight=2;
+	    server 192.168.244.131 weight=1;
+	} 
+
+Si deseamos que las peticiones que vienen desde un mismo Host se redireccionen al mismo servidor para evitar errores al cambiar entre servidores (durante sesiones largas), utilizamos configuración para conexiones con *keepalive* para que persistan las peticiones HTTP.
+
+Solo hay que añadir una línea a la sección *upstream* que indique la configuración *keepalive* y la conexión en segundos, en este caso ponemos 10 segundos:
+
+	upstream apaches {
+		server 192.168.244.129 weight=2;
+	    server 192.168.244.131 weight=1;
+		keepalive 10;
+	} 
+
+Listo, ya tenemos nuestro balanceador con *nginx* configurado.
+
+----------
+
+
+## Balanceo de carga con *haproxy*
+
+Teniendo en cuenta la disposición anterior de los servidores y el balanceador (que también hemos utilizado en el caso de *nginx*) debemos modificar la configuración de **haproxy**, el archivo */etc/haproxy/haproxy.cfg.
+
+La configuración en este caso es un poco más sencilla que en caso anterior, las directrices de configuración parecen ser más simples.
+
+Como las peticiones a escuchar son para conexiones a servidor web, se escuchará por el puerto 80, debemos indicarlo también. El archivo de configuración debería ser algo así:
+
+	global
+		daemon
+		maxconn 256
+	defaults
+		mode http
+		contimeout 4000
+		clitimeout 42000
+		srvtimeout 43000
+	frontend http-in
+		bind *:80
+		default_backend servers
+	backend servers
+		server m1 192.168.244.129:80 maxconn 32
+		server m2 192.168.244.131:80 maxconn 32
+
+Activamos el servicio de **haproxy** para que empiece a funcionar:
+
+`$sudo /usr/sbin/haproxy -f /etc/haproxy/haproxy.cfg`
+
+Si no aparece ningún error suele ser que todo ha ido correctamente. Podemos probarlo como mediante un navegador web y conectándonos a la IP del servidor que hace de balanceo.
+
