@@ -114,5 +114,5 @@ Activamos el servicio de **haproxy** para que empiece a funcionar:
 
 `$sudo /usr/sbin/haproxy -f /etc/haproxy/haproxy.cfg`
 
-Si no aparece ningún error suele ser que todo ha ido correctamente. Podemos probarlo como mediante un navegador web y conectándonos a la IP del servidor que hace de balanceo.
+Si no aparece ningún error suele ser que todo ha ido correctamente. Podemos probarlo como mediante un navegador web y conectándonos a la IP del servidor que hace de balanceador.
 
