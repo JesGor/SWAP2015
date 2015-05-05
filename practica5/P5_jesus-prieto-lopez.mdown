@@ -1,0 +1,215 @@
+# Servidores Web de Altas Prestaciones 2014-15
+## Práctica 5 - Jesús Prieto López
+
+----------
+
+Con esta práctica realizaremos y pondremos en funcionamiento la replicación de bases de datos MySQL entre servidores.
+
+Utilizamos la siguiente disposición:
+* Máquina Servidor 1 | IP: 192.168.244.129
+* Máquina Servidor 2 | IP: 192.168.244.131
+
+La máquina 1 será la que tenga la base de datos 'original', mientras que la 2 será la que tenga la réplica.
+
+## Creación de Base de Datos
+
+En este apartado **solo trabajamos en la máquina 1**.Creamos una base de datos de prueba en la que introduciremos datos para así tener información y comprobar que realizamos bien la replica de la BD.
+
+Nos conectamos a la interfaz de la línea de comandos de MySQL con el comando:
+
+`$ mysql -uroot -p`
+
+**A partir de aquí utilizaremos la línea de comandos de MySQL.**
+
+Creamos una base de datos, la que queramos (en este caso podría ser una para guardar las asignaturas matriculadas, curso, nota, etc...), con la siguiente orden:
+
+`mysql> create database universidad;`
+
+Indicamos que vamos a trabajar con esa base de datos:
+
+`mysql> use universidad`
+
+Creamos la tabla para las asignaturas, que tenga datos sobre el nombre de la asignatura, curso y nota (hay que indicar el tipo).
+
+`mysql> create table asignaturas( nombre varchar(100), curso int, nota float);`
+
+Comprobamos que hemos creado bien la tabla con *describe*.
+
+`mysql> describe asignaturas;`
+
+![Información de la estructura de la tabla asignaturas](cap1.PNG)
+
+Introducimos algunos datos a la tabla.
+
+`mysql> insert into asignaturas(nombre, curso, nota) values("<nombre>",<curso>,<nota>);`
+
+Después de insertar algunos valores insertamos el comando para ver el contenido de la tabla con *select*, así vemos que todo ha ido correctamente.
+
+`mysql> select * from asignaturas;`
+
+![Captura con el select de datos de la tabla asignaturas](cap2.PNG)
+
+Podemos salir de la interfaz ya.
+
+`mysql> exit`
+
+----------
+
+## Replicación manual con *mysqldump*
+
+Empezaremos preparando el terreno para realizar la clonación de datos. Debemos asegurarnos que no se modifiquen los datos que vamos a enviar para que no haya problemas.
+
+En la **máquina 1** debemos evitar que algo sea variado. Entramos en la interfaz de MySQL.
+
+`$ mysql -u root -p`
+
+E introducimos el siguiente comando:
+
+`mysql> FLUSH TABLES WITH READ LOCK;`
+
+Y abandonamos la interfaz.
+
+`mysql> exit;`
+
+Ahora podemos guardar los datos con *mysqldump* en la carpeta */root/*, desde la **máquina 1** tambien introducimos:
+
+`$ mysqldump universidad -u root -p > /root/universidad.sql`
+
+Volvemos ahora a la interfaz MySQL a desbloquear las tablas que habíamos bloqueado anteriormente.
+
+```
+$ mysql -u root -p
+mysql> UNLOCK TABLES;
+mysql> exit;
+```
+
+----------
+
+## Restaurar réplica creada con *mysqldump*
+
+Enviamos los datos del archivo *.SQL* a la **máquina 2** para que tenga la réplica. Esto podemos hacerlo desde dicha **máquina 2** mediante la instrucción *scp*.
+
+`$ scp root@maquina1:/root/universidad.sql /root/`
+
+Una vez estén los datos replicados en la **máquina 2** (en este apartado se trabaja desde aquí) solo nos queda restaurar la copia dentro de la base de datos de esta máquina. 
+
+Hay un pequeño problema, y es que es necesario crear la BD en si, ya que con la restauración no se realiza la creación de la BD misma. 
+
+Creamos la BD antes de restaurar. Entramos al a interfaz de MySQL.
+
+`$ mysql -u root -p`
+
+Le indicamos el mismo nombre que tenía la BD en los datos replicados.
+
+```
+mysql> create database universidad;
+mysql> exit;
+```
+
+Ahora si podemos restaurar los datos sin ningún problema. 
+
+`$ mysql -u root -p universidad < /root/universidad.sql`
+
+----------
+
+**NOTA**: Podemos unificar copiar los datos con *scp* y luego cargarlos en la restauración en un solo comando desde la **máquina 1** con:
+
+`mysqldump universidad -u root -p | ssh equipodestino mysql`
+
+----------
+
+## Replicación automática con configuración *Maestro-Esclavo*
+
+Mediante un demonio MySQL puede realizar réplicas de la BD de un servidor maestro  o principal (el que contiene la información original), en este caso la **máquina 1**, a uno esclavo o secundario, la **máquina 2**.
+
+Partimos del **servidor maestro**, tenemos que editar el archivo de configuración de MySQL. El archivo en cuestión es */etc/mysql/my.cnf* y las modificaciones son las siguientes:
+
+Comentamos la opción de *bind-address*.
+
+`#bind-address 127.0.0.1`
+
+Podemos indicarle donde guardar un log para los errores que surjan (aunque debería venir ya por defecto).
+
+`log_error = /var/log/mysql/error.log`
+
+Ahora vamos a identificar al servidor con un número, su id, le ponemos por ejemplo 1 (solo hay que descomentarlo).
+
+`server-id = 1`
+
+Indicamos el registro binario con la información del registro de actualizaciones (solo hay que descomentarlo este también).
+
+`log_bin = /var/log/mysql/bin.log`
+
+Una vez acabamos, guardamos los cambios y reiniciamos el servicio de MySQL.
+
+`$ /etc/init.d/mysql restart`
+
+Si no ha surgido ningún error podemos continuar. Ahora nos pasamos al **servidor esclavo**.
+
+Antes de nada, debemos comprobar nuestra versión de MySQL, ya que dependerá de la versión (si es menor que la 5.5 o mayor) a como hay que hacer la configuración del mismo.
+
+`$ mysql --version`
+
+![Versión de MySQL del servidor esclavo](cap3.PNG)
+
+En este caso tenemos la versión 5.5, habrá que añadir datos más adelante desde el servicio de MySQL. Configuramos primero el archivo */etc/mysql/my.cnf* de igual manera que hicimos en el servidor maestro, solo cambiando la opción *server-id*.
+
+`server-id = 2`
+
+Reiniciamos el servicio:
+
+`$ /etc/init.d/mysql restart`
+
+Si todo ha ido bien, volvemos al **servidor maestro** para crear un usuario que sea el que cree las réplicas.
+
+Entramos en la interfaz de mysql y creamos el usuario dándole privilegios después.
+
+
+	mysql> create user esclavo identified by 'esclavo';
+	mysql> grant replication slave on *.* to 'esclavo'@'%' IDENTIFIED BY 'esclavo';
+	mysql> FLUSH PRIVILEGES;
+	mysql> FLUSH TABLES;
+	mysql> FLUSH TABLES WITH READ LOCK;
+
+Obtenemos los datos de la BD a replicar para usarlos en el esclavo.
+
+`mysql> SHOW MASTER STATUS;`
+
+![Información (STATUS) de la BD a replicar](cap4.PNG)
+
+Nos vamos al **servidor esclavo** para darle los datos del maestro. Al ser la versión 5.5 debemos indicar los datos del maestro desde la interfaz de MySQL. 
+
+Hay que tener en cuenta la IP del servidor maestro, la cuenta que creamos anteriormente y su contraseña (esclavo) junto a los datos de la captura anterior. Ejecutamos la siguiente instrucción:
+
+	mysql> mysql> CHANGE MASTER TO MASTER_HOST='192.168.244.129',
+	MASTER_USER='esclavo', MASTER_PASSWORD='esclavo',
+	MASTER_LOG_FILE='bin.000001', MASTER_LOG_POS=501,
+	MASTER_PORT=3306;`
+
+Activamos el esclavo y ya será automático el proceso de replicación cada vez que se inserten, modifiquen o se borren datos en la BD del servidor maestro.
+
+`mysql> START SLAVE;`
+
+![Captura con los datos anteriores insertados](cap5.PNG)
+
+Para finalizar, y poder comprobar el funcionamiento, volvemos al **servidor maestro** y desbloqueamos las tablas.
+
+`mysql> UNLOCK TABLES;`
+
+Vamos al **servidor esclavo** de nuevo y comprobamos una opción del estado del esclavo para ver si se ha configurado bien y funciona.
+
+`mysql> SHOW SLAVE STATUS\G;`
+
+Debemos comprobar que la opción "*Seconds_Behind_Master*" sea diferente de "*null*".
+
+![Estado del esclavo](cap6.PNG)
+
+En este caso nos aparece un 0, por lo tanto no hay problema. Todo correcto.
+
+Para asegurarnos, introducimos datos en la tabla que teníamos en el **servidor maestro**.
+
+![Captura con los nuevos datos insertados en la tabla universidad en el servidor maestro](cap7.PNG)
+
+Vamos al **servidor esclavo** a comprobar que la información se ha replicado.
+
+![Captura con los nuevos datos insertados en la tabla universidad desde el servidor maestro](cap8.PNG)
