@@ -1,0 +1,108 @@
+# Servidores Web de Altas Prestaciones 2014-15
+## Práctica 4 - Jesús Prieto López
+
+----------
+
+En esta práctica realizamos una medición del rendimiento de la configuración de la práctica 3. Utilizaremos dos herramientas para esta tarea: **Apache Benchmark** y **Siege*.
+
+La disposición de las máquinas es igual que en la práctica anterior:
+
+* Máquina balanceadora | IP: 192.168.244.130
+* Máquina Servidor 1 Apache (Doble de potente que la 2) | IP: 192.168.244.129
+* Máquina Servidor 2 Apache | IP: 192.168.244.131
+
+Las pruebas serán, con ambas herramientas, primero sobre la **máquina servidor 1** y después a la **máquina balanceadora** con **nginx** y **haproxy**.
+
+He utilizado las herramientas desde una máquina externa (en este caso el SO anfitrión) Windows.
+
+----------
+##Rendimiento Apache Benchmark
+
+Para estas pruebas utilizamos las parámetros siguientes:
+	
+* -n 1000: solicita la página indicada 1000 veces.
+* -c 10: hacer las peticiones concurrentemente de 10 en 10.
+
+###Comparación Máquina 1 - Máquina Balanceadora
+
+Desde la máquina anfitrión ejecutamos el siguiente comando para hacer la prueba con la máquina 1:
+
+`ab.exe -n 1000 -c 10 http://192.168.244.129/index.html`
+
+![Datos de AB con máquina 1](cap1.PNG)
+
+Para usar el balanceador con el AB introducimos el mismo comando pero cambiando la IP. Nos aseguramos que hacemos una batería de pruebas con cada configuración (primero nginx y luego haproxy, o al revés).
+
+`ab.exe -n 1000 -c 10 http://192.168.244.130/index.html`
+
+![Datos de AB con balanceador nginx](cap2.PNG)
+
+![Datos de AB con balanceador haproxy](cap3.PNG)
+
+Comparamos las diferentes muestras recogidas, *Time Taken for test* y *Requests per second*. Los *Failed Request* no los comparamos ya que han sido 0 en todas las pruebas con esta herramienta.
+
+![Datos de AB comparativos Time Taken for Test](cap7.PNG)
+
+![Datos de AB comparativos Request per second](cap8.PNG)
+
+Podemos ver que el uso del Balanceador acusa el rendimiento, viéndose afectado el tiempo de respuesta. Supongo que será debido al tiempo de procesamiento para el balanceo de carga y comprobar que servidor es el adecuado para recibir la petición.
+
+Dentro de los balanceadores, haproxy ha sido capaz de atender más peticiones por segundo, ya que tomaba menos tiempo para ellas.
+
+----------
+##Rendimiento Siege
+
+En este caso utilizamos las parámetros:
+	
+* -b: se harán los test sin pausa para un rendimiento general.
+* -t60s: tiempo exacto que se ejecutará, en este caso 60 segundos.
+* -v: opcional, mostrará el estado HTTP y las peticiones GET.
+
+###Comparación Máquina 1 - Máquina Balanceadora
+
+En el anfitrión ejecutamos el siguiente comando para hacer la prueba con la máquina 1:
+
+`siege.exe -b -t60S -v http://192.168.244.129/index.html`
+
+![Datos de Siege con máquina 1](cap4.PNG)
+
+Igual que antes, para la máquina balanceadora utilizamos el comando anterior pero cambiando la IP:
+
+`siege.exe -b -t60S -v http://192.168.244.130/index.html`
+
+![Datos de Siege con balanceador nginx](cap5.PNG)
+
+![Datos de Siege con balanceador haproxy](cap6.PNG)
+
+En este caso compararemos:
+
+* *Availability*: porcentaje de disponibilidad el servidor.
+* *Elapsed Time*: tiempo de disponibilidad.
+* *Response Time*: Tiempo de respuesta medio.
+* *Transaction Rate*: media de transacciones por segundo.
+* *Failed Transactions*: transacciones fallidas.
+* *Longest Transactions*: petición que necesitó más tiempo para responderse.
+
+![Datos de Siege comparativos Availability](cap9.PNG)
+
+Se puede apreciar que la máquina 1 no está siempre 100% disponible para todas las peticiones ya sea porque puede estar ocupado con otras peticiones. En cambio con el balanceador es muy raro que no estén disponible ya que se usan las 2 máquinas finales. Solo en un caso nginx no tuvo disponibilidad 100%.
+
+![Datos de Siege comparativos Elapsed Time](cap10.PNG)
+
+Los tiempos de disponibilidad van de acuerdo al porcentaje de disponibilidad, igual que antes, en este caso el tiempo de disponibilidad es más bajo en el caso de la máquina 1.
+
+![Datos de Siege comparativos Response Time](cap11.PNG)
+
+Como es lógico, el tiempo de respuesta conectando directamente al servidor final (máquina 1) es menor que pasando a través del balanceador.
+
+![Datos de Siege comparativos Transaction Rate](cap12.PNG)
+
+Al tener un tiempo menor de respuesta para las peticiones, la máquina 1 es capaz de atender una media de transacciones más alta que los balanceadores. En comparación sale ganando nginx a haproxy.
+
+![Datos de Siege comparativos Failed Transactions](cap13.PNG)
+
+Apenas hay transacciones fallidas, de haproxy no hay ninguna en ningún caso. Por el contrario en la máquina 1 y en el balanceador con nginx si ha habido en algunas pruebas, esto puede ser influenciado por el tiempo que no estuvieron disponibles
+
+![Datos de Siege comparativos Longest Transactions](cap14.PNG)
+
+Por último, podemos ver que las peticiones que más tiempo necesitan varían mucho de una prueba a otra, tanto sea el caso de la máquina 1 o los balanceadores. No hay un patrón común.
