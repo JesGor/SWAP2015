@@ -1,0 +1,89 @@
+# Servidores Web de Altas Prestaciones 2014-15
+## Práctica 6 - Jesús Prieto López
+
+----------
+
+La práctica 6 consiste en montar y configurar dos discos en **RAID 1** por software para distribuir los datos entre discos. Es otra solución ( de replicación ) más para problemas de seguridad referentes a datos.
+
+La configuración se hará sobre un sistema que ya esté funcionando, utilizaremos por ejemplo, la máquina servidor 1 que teníamos de prácticas anteriores.
+
+## Preparación
+
+Antes de ponernos con la configuración, debemos tener en nuestro servidor 2 o más discos, en este caso lo haremos con 2 adicionales al disco principal.
+
+En este caso estoy trabajando con *VMware* y a continuación se muestra como añadir más discos para preparar la práctica.
+
+En la ventana principal, y habiendo seleccionado la máquina virtual sobre la que trabajar, accedemos a editar las opciones *Edit Virtual machine settings*.
+
+![Captura de la ventana principal VMWare](cap1.PNG)
+
+Una vez abierta la ventana de opciones, seleccionamos el botón de añadir que viene en la parte inferior ![Botón de añadir](cap2.PNG).
+
+En el diálogo que se abre después seleccionamos que queremos insertar un disco duro, y pulsamos en siguiente.
+
+![Diálogo para elegir el tipo de hardware a añadir](cap3.PNG)
+
+Y siguiendo el proceso **se añadirá un disco del mismo tipo y capacidad que el principal** (en este caso por defecto, SCSI y 20GB), le indicaremos que se cree desde cero.
+
+Repite el proceso para crear otro disco.
+
+Una vez finalizado el proceso la ventana de opciones de la máquina virtual debería quedar así, con 2 discos duros nuevos ya añadidos.
+
+![Ventana de opciones de la máquina virtual](cap4.PNG)
+
+## Configuración software *RAID 1*
+
+Una vez hechas las preparaciones y tener todo dispuesto arrancamos y accedemos al servidor. Ahora necesitamos instalar el software para configurar el RAID.
+
+Instalaremos *mdadm* para realizar la configuración.
+
+`$ sudo apt-get install mdadm`
+
+Para saber como identificar a los discos duros dentro del sistema tenemos que buscar la información con la que el mismo sistema los almacena y cómo los identifica. Para esta información introducimos el comando:
+
+`$ fdisk -l`
+
+![Información de salida del comando fdisk -l](cap5.PNG)
+
+En mi caso aparece esa información. Podemos apreciar que indica los 2 discos añadidos de tamaño 20GB aprox. Al disco principal lo sitúa y denomina **/dev/sda** y los secundarios añadidos en **/dev/sdb** y **/dev/sdc**.
+
+Con la información obtenida pasamos a configurar el RAID 1. Utilizando los 2 discos añadidos para realizar el montaje del RAID, con el comando *mdadm* indicamos que se haga en **/dev/md0**, **nivel RAID 1** y **número de dispositivos 2**.
+
+`$ mdadm -C /dev/md0 --level=raid1 --raid-devices=2 /dev/sdb /dev/sdc`
+
+Si no ha ocurrido ningún problema podemos continuar dando formato al RAID.
+
+`$ mkfs /dev/md0`
+
+Y montamos el RAID en un directorio (existente, o que lo creemos primero) que nosotros deseemos, en este caso podemos montarlo en **/datos**.
+
+`$ mount /dev/md0 /datos`
+
+Comprobamos el estado de la configuración que hemos hecho mediante el comando siguiente:
+
+`$ mdadm --detail /dev/md0`
+
+Y podemos ver que todo ha ido correctamente si vemos algo así:
+
+![Detalles de la configuración RAID sobre /dev/md0](cap6.PNG)
+
+Por último queda configurar el servidor para que al arrancar monte el dispositivo RAID configurado en la carpeta indicada.
+
+Antes de nada necesitamos la UUID del RAID, podemos conseguir con el siguiente comando:
+
+`$ blkid`
+
+![Salida del comando blkid con las UUID de los dispositivos de almacenamiento](cap7.PNG)
+
+
+Nos vamos al fichero */etc/fstab* y añadimos la siguiente línea:
+
+`UUID=eb0ec3ee-8ef3-4d78-bfad-6361d049a98a	/datos	ext2	default	0	0`
+
+Podemos probar a reiniciar y comprobar que tenemos montado el RAID en la carpeta /datos. Introducimos el comando **mount**.
+
+`$ mount`
+
+![Información de los montajes con el comando mount](cap8.PNG)
+
+Vemos que está montado el RAID en el directorio /datos y el tipo es ext2. En este caso nos ha renombrado md0 a md127, pero eso no es importante, el funcionamiento es el mismo.
