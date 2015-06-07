@@ -21,7 +21,7 @@ Plataform As A Service, o plataforma como servicio, es un servicio de computaci�
 
 Es un proyecto PaaS de código abierto creado por Red Hat con la idea de simplificar y ayudar la programación de aplicaciones web públicas o privadas.
 
-Red Hat proporciona varios de su proyecto PaaS
+Red Hat proporciona varios modelos de su proyecto PaaS
 * **[OpenShift Online](https://www.openshift.com/products/online)**: Este modelo es una PaaS pública alojada en los servidores de Red Hat, sirviendo estos de hosting. Es de acceso gratuito.
 
 * **[OpenShift Enterprise](https://www.openshift.com/products/enterprise)**: PaaS para uso privado.
